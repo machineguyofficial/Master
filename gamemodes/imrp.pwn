@@ -223,10 +223,10 @@
 // mysql_tqueryof(szQuery, THREAD_IP_LOOKUP, playerid, g_SQL);
 //(MySQL:handle, const query[], const callback[] = "", const format[] = "", {Float,_}:...)
 #define mysql_tqueryof(%1,%2,%3,%4) \
-	mysql_tquery(%4, %1, "OnQueryFinish", "siii", %1, %2, %3, %4)
+	mysql_tquery(%4, %1, "OnQueryFinish", "sii", %1, %2, %3)
 	
 forward OnPlayerChangeWeapon(playerid, weapon);
-forward OnQueryFinish(query[], resultid, extraid, MySQL:connectionHandle);
+forward OnQueryFinish(query[], resultid, extraid);
 forward ConsumeGlobalFuel();
 forward PayDay();
 forward MySQL_Change_Name(playerid, newname[], adminid, MySQL:connectionHandle);
@@ -238,13 +238,13 @@ forward MySQL_Player_Referral(playerid, referer[], MySQL:connectionHandle);
 forward MySQL_Unban_Player(name[], adminid, MySQL:connectionHandle);
 forward MySQL_Suspend_Player(name[], adminid, MySQL:connectionHandle);
 forward MySQL_Unban_Ip(ip[], adminid, MySQL:connectionHandle);
-forward MySQL_Faction_Load(MySQL:connectionHandle);
-forward MySQL_Business_Load(MySQL:connectionHandle);
-forward MySQL_Vault_Load(MySQL:connectionHandle);
-forward MySQL_Vehicle_Load(MySQL:connectionHandle);
-forward MySQL_House_Load(MySQL:connectionHandle);
-forward MySQL_Waypoint_Load(MySQL:connectionHandle);
-forward MySQL_Gates_Load(MySQL:connectionHandle);
+forward MySQL_Faction_Load();
+forward MySQL_Business_Load();
+forward MySQL_Vault_Load();
+forward MySQL_Vehicle_Load();
+forward MySQL_House_Load();
+forward MySQL_Waypoint_Load();
+forward MySQL_Gates_Load();
 forward LoadPlayerAccount(playerid, MySQL:connectionHandle);
 forward SavePlayerAccount(playerid, MySQL:connectionHandle);
 forward SetPlayerToTeamColor(playerid);
@@ -1384,10 +1384,9 @@ stock HideIntroTextDraws(playerid)
 	TextDrawHideForPlayer(playerid, Login8);
 }
 
-public OnQueryFinish(query[], resultid, extraid, MySQL:connectionHandle)
+public OnQueryFinish(query[], resultid, extraid)
 {
-	new
-		rowCount;
+	new rowCount;
 	cache_get_row_count(rowCount);
 	switch (resultid)
 	{
@@ -1396,7 +1395,7 @@ public OnQueryFinish(query[], resultid, extraid, MySQL:connectionHandle)
 	        new szQuery[128];
 	        if(rowCount > 0)
 	        {
-             	cache_get_row_count(connectionHandle);
+             	//cache_get_row_count(connectionHandle);
 
 	            new
 	                szString[512],
@@ -1415,11 +1414,11 @@ public OnQueryFinish(query[], resultid, extraid, MySQL:connectionHandle)
 				{
 				    SendClientMessageEx(extraid, COLOR_WHITE, "Your ban date has passed and you have been unbanned from the server.");
 					format(szString, sizeof(szString), "DELETE FROM `bans` WHERE `IP_Address` = '%s'", GetPlayerIpAddress(extraid));
-					mysql_tqueryof(szString, THREAD_LOG_RESULT, extraid, connectionHandle);
+					mysql_tqueryof(szString, THREAD_LOG_RESULT, extraid, g_SQL);
 					format(szString, sizeof(szString), "UPDATE `accounts` SET `Banned` = '0' WHERE `Username` = '%s'", bUsername);
-					mysql_tqueryof(szString, THREAD_LOG_RESULT, extraid, connectionHandle);
+					mysql_tqueryof(szString, THREAD_LOG_RESULT, extraid, g_SQL);
 					format(szString, sizeof(szString), "SELECT * FROM `accounts` WHERE `Username` = '%s' LIMIT 0, 1", PlayerInfo[extraid][pUsername]);
-					mysql_tqueryof(szString, THREAD_ACCOUNT_LOOKUP, extraid, connectionHandle);
+					mysql_tqueryof(szString, THREAD_ACCOUNT_LOOKUP, extraid, g_SQL);
 				}
 				else
 				{
@@ -1431,7 +1430,7 @@ public OnQueryFinish(query[], resultid, extraid, MySQL:connectionHandle)
 	        else
 	        {
 				format(szQuery, sizeof(szQuery), "SELECT * FROM `accounts` WHERE `Username` = '%s' LIMIT 0, 1", PlayerInfo[extraid][pUsername]);
-				mysql_tqueryof(szQuery, THREAD_ACCOUNT_LOOKUP, extraid, connectionHandle);
+				mysql_tqueryof(szQuery, THREAD_ACCOUNT_LOOKUP, extraid, g_SQL);
 	        }
 	    }
 
@@ -1440,9 +1439,8 @@ public OnQueryFinish(query[], resultid, extraid, MySQL:connectionHandle)
 	        new szValue[256];
 	        if(rowCount > 0)
 	        {
-	            cache_get_row_count(connectionHandle);
                 cache_get_value_name(0, "Password", PlayerInfo[extraid][pPassword], 129);
-               	LoadPlayerAccount(extraid, connectionHandle);
+               	LoadPlayerAccount(extraid, g_SQL);
 	        	if(!IsRPName(extraid))
 				{
 				    SendClientMessageEx(extraid, COLOR_YELLOW, "Your account has been suspended. Please contact an administrator for more information.");
@@ -1488,8 +1486,7 @@ public OnQueryFinish(query[], resultid, extraid, MySQL:connectionHandle)
 		case THREAD_REGISTER_SPAWN:
 		{
 		    HideIntroTextDraws(extraid);
-			//cache_get_row_count(connectionHandle);
-			LoadPlayerAccount(extraid, connectionHandle);
+			LoadPlayerAccount(extraid, g_SQL);
 	        ShowPlayerDialogEx(extraid, DIALOG_GENDER, DIALOG_STYLE_LIST, "{FFFFFF}Character Customization - Gender", "{FFFFFF}Male\n{FF8CBC}Female", "Select", "Exit");
 		}
 
@@ -1961,9 +1958,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					return ShowPlayerDialogEx(playerid, DIALOG_REFERER, DIALOG_STYLE_INPUT, "{FFFFFF}Referral", "Were you referred by another player of IM:RP?", "Yes", "No");
 				}
 				new string[128], rname[25];
-				mysql_escape_string(inputtext, rname);
-                mysql_format(g_SQL, string, sizeof(string), "SELECT * FROM `accounts` WHERE `Username` = '%s'", rname);
-				mysql_tquery(g_SQL, string, "MySQL_Player_Referral", "isi", playerid, inputtext, g_SQL);
+                mysql_format(g_SQL, string, sizeof(string), "SELECT * FROM `accounts` WHERE `Username` = '%e'", rname);
+				mysql_tquery(g_SQL, string, "MySQL_Player_Referral", "isi", playerid, inputtext);
 		    }
 		    else
 		    {
@@ -4457,7 +4453,7 @@ CMD:approvename(playerid, params[])
 		else if(GetPVarInt(targetid, "gPlayerLogged") == 0) return SendClientMessageEx(playerid, COLOR_GREY, "Invalid player specified.");
 		else if(GetPVarString(targetid, "CharacterName", pName, MAX_PLAYER_NAME) == 0) return SendClientMessageEx(playerid, COLOR_GREY, "The specified player does not need a name change.");
 		format(string, sizeof(string), "SELECT * FROM `accounts` WHERE `Username` = '%s'", pName);
-		mysql_tquery(g_SQL, string, "MySQL_Change_Name", "isii", targetid, pName, playerid, g_SQL);
+		mysql_tquery(g_SQL, string, "MySQL_Change_Name", "isii", targetid, pName, playerid);
 	}
 	return 1;
 }
@@ -4471,7 +4467,7 @@ CMD:setname(playerid, params[])
 		else if(GetPVarInt(targetid, "gPlayerLogged") == 0) return SendClientMessageEx(playerid, COLOR_GREY, "Invalid player specified.");
 		SetPVarInt(targetid, "FreeNamechange", 1);
 		format(string, sizeof(string), "SELECT * FROM `accounts` WHERE `Username` = '%s'", pName);
-		mysql_tquery(g_SQL, string, "MySQL_Change_Name", "isii", targetid, pName, playerid, g_SQL);
+		mysql_tquery(g_SQL, string, "MySQL_Change_Name", "isii", targetid, pName, playerid);
 	}
 	return 1;
 }
@@ -7055,7 +7051,7 @@ CMD:unban(playerid, params[])
 	    new pName[24], szQuery[128];
 		if(sscanf(params, "s[24]", pName)) return SendClientMessageEx(playerid, COLOR_GREY, "Usage: /unban [playername]");
 		format(szQuery, sizeof(szQuery), "SELECT * FROM `bans` WHERE `Username` = '%s'", pName);
-		mysql_tquery(g_SQL, szQuery, "MySQL_Unban_Player", "sii", pName, playerid, g_SQL);
+		mysql_tquery(g_SQL, szQuery, "MySQL_Unban_Player", "sii", pName, playerid);
    	}
    	else
    	{
@@ -7105,15 +7101,14 @@ CMD:suspend(playerid, params[])
 	else
 	{
 		format(szQuery, sizeof(szQuery), "SELECT * FROM `accounts` WHERE `Username` = '%s'", pName);
-		mysql_tquery(g_SQL, szQuery, "MySQL_Suspend_Player", "sii", pName, playerid, g_SQL);
+		mysql_tquery(g_SQL, szQuery, "MySQL_Suspend_Player", "sii", pName, playerid);
 	}
 	return 1;
 }
 
-public MySQL_Unban_Ip(ip[], adminid, MySQL:connectionHandle)
+public MySQL_Unban_Ip(ip[], adminid)
 {
-	new szQuery[128], rowCount;
-	cache_get_row_count(rowCount);
+	new szQuery[128];
 	if(cache_affected_rows() > 0)
 	{
 		format(szQuery, sizeof(szQuery), "IP Address %s has been found and removed off the ban list.", ip);
@@ -7132,8 +7127,8 @@ CMD:unbanip(playerid, params[])
     {
 	    new IpAddress[16], szQuery[128];
 		if(sscanf(params, "s[16]", IpAddress)) return SendClientMessageEx(playerid, COLOR_GREY, "Usage: /unbanip [ipaddress]");
-		format(szQuery, sizeof(szQuery), "DELETE FROM `bans` WHERE `IP_Address` = '%s'", IpAddress);
-		mysql_tquery(g_SQL, szQuery, "MySQL_Unban_Ip", "sii", IpAddress, playerid, g_SQL);
+		format(szQuery, sizeof(szQuery), "DELETE FROM `bans` WHERE `IP_Address` = '%e'", IpAddress);
+		mysql_tquery(g_SQL, szQuery, "MySQL_Unban_Ip", "sii", IpAddress, playerid);
    	}
    	else
    	{
@@ -7202,7 +7197,7 @@ CMD:oban(playerid, params[])
 	    new pName[24], days, reason[64], szQuery[128];
 		if(sscanf(params, "s[24]is[64]", pName, days, reason)) return SendClientMessageEx(playerid, COLOR_GREY, "Usage: /oban [playername] [days] <-1 = permanent> [reason]");
 		format(szQuery, sizeof(szQuery), "SELECT * FROM `accounts` WHERE `Username` = '%s'", pName);
-		mysql_tquery(g_SQL, szQuery, "MySQL_Offline_Ban", "ssiii", pName, reason, days, playerid, g_SQL);
+		mysql_tquery(g_SQL, szQuery, "MySQL_Offline_Ban", "ssiii", pName, reason, days, playerid);
 
    	}
    	else
@@ -7225,7 +7220,7 @@ CMD:report(playerid, params[])
    	else if(GetPVarString(playerid, "Report", string, sizeof(string)) > 0) return SendClientMessageEx(playerid, COLOR_GREY, "You already have an existing report, type /cancel report to cancel it.");
  	SetPVarString(playerid, "Report", params);
 	SetPVarInt(playerid, "ReportStage", 1);
-	format(string, sizeof(string), "{FFFF00}Report from [%i] %s : %s", playerid, GetPlayerNameEx(playerid), params);
+	format(string, sizeof(string), "{FFFF00}Report from [%i] %s: %s", playerid, GetPlayerNameEx(playerid), params);
  	AdminAlert(string, ALERT_ADMINS);
  	SendClientMessageEx(playerid, COLOR_YELLOW, "Your report message has been sent to online administrators.");
  	rTimeLeft[playerid] = gettime() + 30;
@@ -8003,7 +7998,7 @@ CMD:setstat(playerid, params[])
 		    if(!IsNumberAvailable(value)) return SendClientMessageEx(playerid, COLOR_GREY, "The specified number is not available.");
    			if(PlayerInfo[targetid][pPhoneNumber] != 0) {
 				format(string, sizeof(string), "SELECT * FROM `accounts` WHERE `PhoneNumber` = '%d'", PlayerInfo[targetid][pPhoneNumber]);
-				mysql_tquery(g_SQL, string, "MySQL_Delete_Number", "iii", PlayerInfo[targetid][pPhoneNumber], targetid, g_SQL);
+				mysql_tquery(g_SQL, string, "MySQL_Delete_Number", "iii", PlayerInfo[targetid][pPhoneNumber], targetid);
 				DeletePhoneNumber(PlayerInfo[targetid][pPhoneNumber]);
 			}
 		    AddPhoneNumber(value);
@@ -8127,7 +8122,7 @@ CMD:deletenumber(playerid, params[])
 	    }
 	    else if(strval(params) == 0 || strlen(params) > 7) return SendClientMessageEx(playerid, COLOR_GREY, "You have specified an invalid number.");
 		format(szQuery, sizeof(szQuery), "SELECT * FROM `accounts` WHERE `PhoneNumber` = '%d'", strval(params));
-		mysql_tquery(g_SQL, szQuery, "MySQL_Delete_Number", "iii", strval(params), playerid, g_SQL);
+		mysql_tquery(g_SQL, szQuery, "MySQL_Delete_Number", "iii", strval(params), playerid);
 	}
 	return 1;
 }
@@ -8815,7 +8810,7 @@ CMD:uninvite(playerid, params[])
 CMD:giverank(playerid, params[])
 {
 	new targetid, rank, string[128];
-	if(sscanf(params, "ui", targetid, rank)) return SendClientMessageEx(playerid, COLOR_GREY, "Usage: /giverank <playerid> <rank 0-6>");
+	if(sscanf(params, "ui", targetid, rank)) return SendClientMessageEx(playerid, COLOR_GREY, "Usage: /giverank <playerid> <rank 1-10>");
 	else if(!IsPlayerConnectedEx(targetid)) return SendClientMessageEx(playerid, COLOR_GREY, "Invalid player specified.");
 	if(PlayerInfo[playerid][pFaction] > 0 && PlayerInfo[playerid][pLeadership] == 1)
 	{
@@ -9124,7 +9119,7 @@ CMD:admins(playerid, params[])
 CMD:mods(playerid, params[])
 {
 	new string[128];
-	if(PlayerInfo[playerid][pAdminLevel] < ADMIN_LEVEL_TWO) return 1;
+	if(IsAdmin(playerid, ADMIN_LEVEL_TWO)) return 1;
 	SendClientMessageEx(playerid, COLOR_ORANGE, "---------------------------------");
 	SendClientMessageEx(playerid, COLOR_ORANGE, ""SERVER_NAME" - Moderation Team");
 	foreach (Player, i)
@@ -13950,7 +13945,7 @@ stock IsAValidSkin(skinid)
 	return !(skinid > 274 && skinid < 288);
 }
 
-public MySQL_Waypoint_Load(MySQL:connectionHandle)
+public MySQL_Waypoint_Load()
 {
     new
         rows,
@@ -13990,10 +13985,10 @@ public MySQL_Waypoint_Load(MySQL:connectionHandle)
 
 stock MySQL_Load_Waypoints()
 {
-	mysql_tquery(g_SQL, "SELECT * FROM `waypoints`", "MySQL_Waypoint_Load", "i", g_SQL);
+	mysql_tquery(g_SQL, "SELECT * FROM `waypoints`", "MySQL_Waypoint_Load");
 }
 
-public MySQL_Business_Load(MySQL:connectionHandle)
+public MySQL_Business_Load()
 {
     new
         rows,
@@ -14027,10 +14022,10 @@ public MySQL_Business_Load(MySQL:connectionHandle)
 
 stock MySQL_Load_Businesses()
 {
-	mysql_tquery(g_SQL, "SELECT * FROM `businesses`", "MySQL_Business_Load", "i", g_SQL);
+	mysql_tquery(g_SQL, "SELECT * FROM `businesses`", "MySQL_Business_Load");
 }
 
-public MySQL_House_Load(MySQL:connectionHandle)
+public MySQL_House_Load()
 {
     new
         rows,
@@ -14060,10 +14055,10 @@ public MySQL_House_Load(MySQL:connectionHandle)
 
 stock MySQL_Load_Houses()
 {
-	mysql_tquery(g_SQL, "SELECT * FROM `houses`", "MySQL_House_Load", "i", g_SQL);
+	mysql_tquery(g_SQL, "SELECT * FROM `houses`", "MySQL_House_Load");
 }
 
-public MySQL_Faction_Load(MySQL:connectionHandle)
+public MySQL_Faction_Load()
 {
     new rows, id, szValue[64];
     cache_get_row_count(rows);
@@ -14103,11 +14098,11 @@ public MySQL_Faction_Load(MySQL:connectionHandle)
 
 stock MySQL_Load_Factions()
 {
-	mysql_tquery(g_SQL, "SELECT * FROM `factions`", "MySQL_Faction_Load", "i", g_SQL);
+	mysql_tquery(g_SQL, "SELECT * FROM `factions`", "MySQL_Faction_Load");
 }
 
 
-public MySQL_Gates_Load(MySQL:connectionHandle)
+public MySQL_Gates_Load()
 {
     new
         rows,
@@ -14142,10 +14137,10 @@ public MySQL_Gates_Load(MySQL:connectionHandle)
 
 stock MySQL_Load_Gates()
 {
-	mysql_tquery(g_SQL, "SELECT * FROM `gates`", "MySQL_Gates_Load", "i", g_SQL);
+	mysql_tquery(g_SQL, "SELECT * FROM `gates`", "MySQL_Gates_Load");
 }
 
-public MySQL_Vault_Load(MySQL:connectionHandle)
+public MySQL_Vault_Load()
 {
     new
         rows,
@@ -14170,10 +14165,10 @@ public MySQL_Vault_Load(MySQL:connectionHandle)
 
 stock MySQL_Load_Vaults()
 {
-	mysql_tquery(g_SQL, "SELECT * FROM `vaults`", "MySQL_Vault_Load", "i", g_SQL);
+	mysql_tquery(g_SQL, "SELECT * FROM `vaults`", "MySQL_Vault_Load");
 }
 
-public MySQL_Vehicle_Load(MySQL:connectionHandle)
+public MySQL_Vehicle_Load()
 {
     new
         rows,
@@ -14204,7 +14199,7 @@ public MySQL_Vehicle_Load(MySQL:connectionHandle)
 
 stock MySQL_Load_Vehicles()
 {
-	mysql_tquery(g_SQL, "SELECT * FROM `vehicles`", "MySQL_Vehicle_Load", "i", g_SQL);
+	mysql_tquery(g_SQL, "SELECT * FROM `vehicles`", "MySQL_Vehicle_Load");
 }
 
 
