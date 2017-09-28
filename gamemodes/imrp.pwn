@@ -1162,10 +1162,9 @@ public OnGameModeInit()
 stock MySQL_Initialize()
 {
 	mysql_log(ERROR | WARNING);
-	/*new MySQLOpt:options = mysql_init_options();
+	new MySQLOpt:options = mysql_init_options();
 	mysql_set_option(options, AUTO_RECONNECT, true);
-	mysql_set_option(options, POOL_SIZE, 0);*/
-	g_SQL = mysql_connect(MYSQL_HOST, MYSQL_USERNAME, MYSQL_PASSWORD, MYSQL_DATABASE);
+	g_SQL = mysql_connect(MYSQL_HOST, MYSQL_USERNAME, MYSQL_PASSWORD, MYSQL_DATABASE, options);
 	printf("[MySQL]: Attempting to make a connection to %s with username %s and password %s to database %s.", MYSQL_HOST, MYSQL_USERNAME, MYSQL_PASSWORD, MYSQL_DATABASE);
 	if(mysql_errno() != 0)
 	{
