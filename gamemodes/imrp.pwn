@@ -6655,17 +6655,6 @@ CMD:gov(playerid, params[])
 	return 1;
 }
 
-CMD:staff(playerid, params[])
-{
-	if(IsAdmin(playerid, ADMIN_LEVEL_ONE))
-	{
-		if(isnull(params)) return SendClientMessageEx(playerid, COLOR_GREY, "Usage: /staff [message]");
-		new string[128];
-		format(string, sizeof(string), "** %s %s: %s **", GetAdminRank(playerid), GetPlayerNameEx(playerid), params);
-		foreach(new i: Player) if(IsAdmin(i, ADMIN_LEVEL_ONE)) SendClientMessageEx(i, COLOR_CYAN, string);
-	}
-	return 1;
-}
 
 CMD:a(playerid, params[]) return cmd_admin(playerid, params);
 CMD:admin(playerid, params[])
@@ -6675,7 +6664,7 @@ CMD:admin(playerid, params[])
 		if(isnull(params)) return SendClientMessageEx(playerid, COLOR_GREY, "Usage: /a(dmin) [message]");
 		new string[128];
 		format(string, sizeof(string), "** %s %s: %s **", GetAdminRank(playerid), GetPlayerNameEx(playerid), params);
-		foreach(new i: Player) if(PlayerInfo[i][pAdminLevel] >= ADMIN_LEVEL_TWO) SendClientMessageEx(i, COLOR_YELLOW, string);
+		foreach(new i: Player) if(PlayerInfo[i][pAdminLevel] >= ADMIN_LEVEL_ONE) SendClientMessageEx(i, COLOR_YELLOW, string);
 	}
 	return 1;
 }
@@ -7212,7 +7201,6 @@ CMD:report(playerid, params[])
   	else if(PlayerInfo[playerid][pReportMute] == 1) return SendClientMessageEx(playerid, COLOR_GREY, "You are muted from creating reports.");
    	else if(GetPVarString(playerid, "Report", string, sizeof(string)) > 0) return SendClientMessageEx(playerid, COLOR_GREY, "You already have an existing report, type /cancel report to cancel it.");
  	SetPVarString(playerid, "Report", params);
-	SetPVarInt(playerid, "ReportStage", 1);
 	format(string, sizeof(string), "{FFFF00}Report from [%i] %s: %s", playerid, GetPlayerNameEx(playerid), params);
  	AdminAlert(string, ALERT_ADMINS);
  	SendClientMessageEx(playerid, COLOR_YELLOW, "Your report message has been sent to online administrators.");
@@ -7267,7 +7255,6 @@ CMD:ar(playerid, params[])
 			format(string, sizeof(string), "%s has accepted your report and is now reviewing it, you may use /pm to speak with the administrator.", GetPlayerNameEx(playerid));
 			SendClientMessageEx(targetid, COLOR_WHITE, string);
 			SendClientMessageEx(playerid, COLOR_LIGHTBLUE, "Note: Please use /cr after completing the current report.");
-			SetPVarInt(targetid, "ReportStage", 2);
 			SetPVarInt(targetid, "SpeakingAdmin", playerid + 1);
 			SetPVarInt(playerid, "SpeakingPlayer", targetid + 1);
 		}
@@ -7316,7 +7303,6 @@ CMD:tr(playerid, params[])
 DeleteReport(playerid)
 {
 	DeletePVar(playerid, "Report");
-	DeletePVar(playerid, "ReportStage");
 	if(GetPVarInt(playerid, "SpeakingAdmin") > 0)
 	{
 	    DeletePVar(GetPVarInt(playerid, "SpeakingAdmin") - 1, "SpeakingPlayer");
